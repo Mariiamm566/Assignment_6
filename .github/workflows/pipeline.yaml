@@ -1,7 +1,54 @@
-name: Test Pipeline
-on: [push]
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - "*"
+
 jobs:
-  test:
+
+  linter:
     runs-on: ubuntu-latest
+
     steps:
-      - run: echo "Hiiii"
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run linter
+        run: |
+          echo "Running linter..."
+          echo "Lint passed!"
+
+  train:
+    runs-on: ubuntu-latest
+    needs: linter
+
+    if: >
+      github.ref == 'refs/heads/main' &&
+      contains(github.event.head_commit.message, '[run-train]')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run training
+        run: |
+          echo "Training model..."
+          echo "Training done!"
+
+      - name: Generate error logs
+        if: failure()
+        run: |
+          echo "Error happened during training" > error_logs.txt
+
+      - name: Upload error logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: error-logs
+          path: error_logs.txt
+
+      - name: Cleanup resources
+        if: always()
+        run: echo "Cleaning up temporary cloud volumes..."
